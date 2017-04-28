@@ -28,7 +28,7 @@ func main() {
 	for _, line := range lines {
 		for i, field := range line {
 			length := maxs[i]
-			format := fmt.Sprintf("% %%ds  ", length)
+			format := fmt.Sprintf("%% %ds  ", length)
 			fmt.Printf(format, field)
 		}
 		fmt.Println()
