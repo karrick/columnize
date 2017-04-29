@@ -16,5 +16,5 @@ need to install a copy from http://golang.org.
 Once you have Go installed:
 
 ```
-go get https://github.com/karrick/columnize
+go get github.com/karrick/columnize
 ```
