@@ -31,7 +31,7 @@ S` command line option is given, it uses the provided string as the
 field delimiter. `S` may be a string of multiple characters.
 
 ```
-columnize -f 2 input.txt
+columnize -d : input.txt
 ```
 
 ## Installation
