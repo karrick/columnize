@@ -37,7 +37,7 @@ columnize -d : input.txt
 ## Installation
 
 If you don't have the Go programming language installed, then you'll
-need to install a copy from http://golang.org.
+need to install a copy from [http://golang.org](http://golang.org).
 
 Once you have Go installed:
 
