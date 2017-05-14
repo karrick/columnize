@@ -68,11 +68,9 @@ func process(ior io.Reader) error {
 				if rj, ok := rightJustifys[i]; !ok || rj {
 					_, err := strconv.ParseFloat(field, 64)
 					if err != nil {
-						fmt.Println("not a number: %v\n", field)
 						// not a number; mark this column as left justify
 						rightJustifys[i] = false
 					} else if !ok {
-						fmt.Println("number: %v\n", field)
 						// first time column observed, and is a number
 						rightJustifys[i] = true
 					}
