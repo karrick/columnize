@@ -11,15 +11,13 @@ import (
 )
 
 var (
-	leftJustify  = false
-	rightJustify = false
-	delimiter    = "  "
+	leftJustify  = flag.Bool("l", false, "left-justify all columns")
+	rightJustify = flag.Bool("r", false, "right-justify all columns")
+	delimiter    = flag.String("d", " ", "column delimiter")
+	ignoreHeader = flag.Bool("h", false, "ignore header when determining justification")
 )
 
 func main() {
-	flag.BoolVar(&leftJustify, "l", leftJustify, "left-justify all columns")
-	flag.BoolVar(&rightJustify, "r", rightJustify, "right-justify all columns")
-	flag.StringVar(&delimiter, "d", delimiter, "column delimiter")
 	flag.Parse()
 
 	args := flag.Args()
@@ -53,6 +51,7 @@ func process(ior io.Reader) error {
 	widths := make(map[int]int, 16)
 	rightJustifys := make(map[int]bool, 16)
 
+	header := *ignoreHeader
 	br := bufio.NewScanner(ior)
 	for br.Scan() {
 		fields := strings.Fields(strings.TrimSpace(br.Text()))
@@ -62,16 +61,18 @@ func process(ior io.Reader) error {
 			if width > previousWidth {
 				widths[i] = width
 			}
-			if !(leftJustify || rightJustify) {
+			if !header && !(*leftJustify || *rightJustify) {
 				// NOTE: If either first time this column observed, i.e., likely
 				// only for first line of input, or all previous fields in this
 				// column have been numbers...
 				if rj, ok := rightJustifys[i]; !ok || rj {
 					_, err := strconv.ParseFloat(field, 64)
 					if err != nil {
+						fmt.Println("not a number: %v\n", field)
 						// not a number; mark this column as left justify
 						rightJustifys[i] = false
 					} else if !ok {
+						fmt.Println("number: %v\n", field)
 						// first time column observed, and is a number
 						rightJustifys[i] = true
 					}
@@ -79,12 +80,13 @@ func process(ior io.Reader) error {
 			}
 		}
 		lines = append(lines, fields)
+		header = false
 	}
 	if err := br.Err(); err != nil {
 		return err
 	}
 	for _, line := range lines {
-		d := delimiter
+		d := *delimiter
 		for i := 0; i < len(line); i++ {
 			if i == len(line)-1 {
 				d = "" // do not emit trailing delimiter
@@ -93,9 +95,9 @@ func process(ior io.Reader) error {
 			field := line[i]
 			width := widths[i]
 
-			if leftJustify {
+			if *leftJustify {
 				left(width, field, d)
-			} else if rightJustify {
+			} else if *rightJustify {
 				right(width, field, d)
 			} else {
 				if rj := rightJustifys[i]; rj {

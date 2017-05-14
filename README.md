@@ -8,9 +8,22 @@ Like `column`, but right justifies columns that are all numbers.
 columnize < input
 ```
 
+By default this program inspects fields for every line to determine
+max field width and whether the field is numerical. By default
+numerical fields are right justified and non-numerical fields are left
+justified.
+
+### Ignore Header
+
+When the `-h` command line option is provided this program still uses
+the first line of input for column width determination, but ignores
+the fields in the first line when determining whether the column is
+numerical.
+
 ### Left Justify
 
-To force all columns to be left-justified, add the `-l` argument.
+When the `-l` command line option is provided, all columns will be
+left justified.
 
 ```
 columnize -l input.txt
@@ -18,7 +31,8 @@ columnize -l input.txt
 
 ### Right Justify
 
-To force all columns to be right-justified, add the `-r` argument.
+When the `-r` command line option is provided, all columns will be
+right justified.
 
 ```
 columnize -r input.txt
