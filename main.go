@@ -2,25 +2,27 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/karrick/golf"
 )
 
 var (
-	leftJustify  = flag.Bool("l", false, "left-justify all columns")
-	rightJustify = flag.Bool("r", false, "right-justify all columns")
-	delimiter    = flag.String("d", " ", "column delimiter")
-	ignoreHeader = flag.Bool("h", false, "ignore header when determining justification")
+	leftJustify  = golf.BoolP('l', "left", false, "left-justify all columns")
+	rightJustify = golf.BoolP('r', "right", false, "right-justify all columns")
+	delimiter    = golf.StringP('d', "delimiter", " ", "column delimiter")
+	ignoreHeader = golf.BoolP('s', "skip-header", false, "skip header when determining justification")
 )
 
 func main() {
-	flag.Parse()
+	golf.Parse()
 
-	args := flag.Args()
+	args := golf.Args()
+
 	if len(args) == 0 {
 		if err := process(os.Stdin); err != nil {
 			bail(err)
