@@ -1,51 +1,43 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/karrick/gobls"
 	"github.com/karrick/golf"
+	"github.com/karrick/gorill"
 )
 
 var (
+	delimiter    = golf.StringP('d', "delimiter", " ", "column delimiter")
+	ignoreHeader = golf.BoolP('s', "skip-header", false, "skip header when determining justificationn")
 	leftJustify  = golf.BoolP('l', "left", false, "left-justify all columns")
 	rightJustify = golf.BoolP('r', "right", false, "right-justify all columns")
-	delimiter    = golf.StringP('d', "delimiter", " ", "column delimiter")
-	ignoreHeader = golf.BoolP('s', "skip-header", false, "skip header when determining justification")
 )
 
 func main() {
 	golf.Parse()
 
-	args := golf.Args()
+	var ior io.Reader
+	if golf.NArg() == 0 {
+		ior = os.Stdin
+	} else {
+		ior = &gorill.FilesReader{Pathnames: golf.Args()}
+	}
 
-	if len(args) == 0 {
-		if err := process(os.Stdin); err != nil {
-			bail(err)
-		}
-		return
-	}
-	for _, arg := range args {
-		fh, err := os.Open(arg)
-		if err != nil {
-			bail(err)
-		}
-		if err := process(fh); err != nil {
-			bail(err)
-		}
-		if err := fh.Close(); err != nil {
-			bail(err)
-		}
-	}
+	exit(process(ior))
 }
 
-func bail(err error) {
-	fmt.Fprintf(os.Stderr, "%s", err)
-	os.Exit(1)
+func exit(err error) {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
 
 func process(ior io.Reader) error {
@@ -54,7 +46,7 @@ func process(ior io.Reader) error {
 	rightJustifys := make(map[int]bool, 16)
 
 	header := *ignoreHeader
-	br := bufio.NewScanner(ior)
+	br := gobls.NewScanner(ior)
 	for br.Scan() {
 		fields := strings.Fields(strings.TrimSpace(br.Text()))
 		for i, field := range fields {
@@ -100,7 +92,7 @@ func process(ior io.Reader) error {
 			} else if *rightJustify {
 				right(width, field, d)
 			} else {
-				if rj := rightJustifys[i]; rj {
+				if rightJustifys[i] {
 					right(width, field, d)
 				} else {
 					left(width, field, d)
