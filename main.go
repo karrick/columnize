@@ -48,8 +48,8 @@ func exit(err error) {
 
 func process(ior io.Reader) error {
 	var lines [][]string
-	widths := make(map[int]int, 16)
-	rightJustifys := make(map[int]bool, 16)
+	widths := make(map[int]int, 16)         // pre-allocate 16 columns
+	rightJustifys := make(map[int]bool, 16) // pre-allocate 16 columns
 
 	br := gobls.NewScanner(ior)
 
