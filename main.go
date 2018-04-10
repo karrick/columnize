@@ -14,7 +14,8 @@ import (
 
 var (
 	delimiter    = golf.StringP('d', "delimiter", " ", "column delimiter")
-	ignoreHeader = golf.BoolP('s', "skip-header", false, "skip header when determining justificationn")
+	ignoreHeader = golf.BoolP('s', "skip-header", false, "Same as --ignore-head 0")
+	ignoreHead   = golf.Int("ignore-head", 0, "ignore N lines from header when formatting columns")
 	leftJustify  = golf.BoolP('l', "left", false, "left-justify all columns")
 	rightJustify = golf.BoolP('r', "right", false, "right-justify all columns")
 )
@@ -27,6 +28,11 @@ func main() {
 		ior = os.Stdin
 	} else {
 		ior = &gorill.FilesReader{Pathnames: golf.Args()}
+	}
+
+	if *ignoreHeader {
+		*ignoreHead = 1
+		*ignoreHeader = false
 	}
 
 	exit(process(ior))
@@ -45,9 +51,17 @@ func process(ior io.Reader) error {
 	widths := make(map[int]int, 16)
 	rightJustifys := make(map[int]bool, 16)
 
-	header := *ignoreHeader
 	br := gobls.NewScanner(ior)
+
+	var lineNumber int
+
 	for br.Scan() {
+		lineNumber++
+		if *ignoreHead > 0 && lineNumber <= *ignoreHead {
+			fmt.Printf("%s\n", br.Text())
+			continue
+		}
+
 		fields := strings.Fields(strings.TrimSpace(br.Text()))
 		for i, field := range fields {
 			width := len(field)
@@ -55,7 +69,7 @@ func process(ior io.Reader) error {
 			if width > previousWidth {
 				widths[i] = width
 			}
-			if !header && !(*leftJustify || *rightJustify) {
+			if !(*leftJustify || *rightJustify) {
 				// NOTE: If either first time this column observed, i.e., likely
 				// only for first line of input, or all previous fields in this
 				// column have been numbers...
@@ -72,7 +86,6 @@ func process(ior io.Reader) error {
 			}
 		}
 		lines = append(lines, fields)
-		header = false
 	}
 	if err := br.Err(); err != nil {
 		return err
