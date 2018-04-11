@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 
+	"github.com/karrick/gobls"
 	"github.com/karrick/golf"
 	"github.com/karrick/gorill"
 )
@@ -44,7 +46,7 @@ func main() {
 		ior = &gorill.FilesReader{Pathnames: golf.Args()}
 	}
 
-	exit(extents(ior))
+	exit(process(ior))
 }
 
 func exit(err error) {
@@ -55,3 +57,81 @@ func exit(err error) {
 	os.Exit(0)
 }
 
+func process(ior io.Reader) error {
+	// Use a cirular buffer, so we are processing the Nth previous line.
+	cb, err := newCircularBuffer(*optFooterLines)
+	if err != nil {
+		return err
+	}
+
+	var lineNumber int
+	var lines []string
+	var mergedExtents []extent
+
+	br := gobls.NewScanner(ior)
+	for br.Scan() {
+		if *optHeaderLines > 0 {
+			// Only need to count lines while ignoring headers.
+			if lineNumber++; lineNumber <= *optHeaderLines {
+				fmt.Println(br.Text())
+				continue
+			}
+			// No reason to count lines any longer.
+			*optHeaderLines = 0
+		}
+
+		// Recall circular buffer always gives us Nth previous line.
+		line := cb.QueueDequeue(br.Text())
+		if line == nil {
+			continue
+		}
+
+		l := line.(string)
+		lines = append(lines, l)
+		mergedExtents = mergeExtents(mergedExtents, extentsFromLine(l))
+	}
+	if err := br.Err(); err != nil {
+		return err
+	}
+	// All input has been read (and header has even been printed). Pretty print
+	// all lines collected thus far, remembering that there may be N lines left
+	// in the circular buffer remaining to be processed.
+	for _, line := range lines {
+		d := *optDelimiter
+		fields := fieldsFromExtents(line, mergedExtents)
+		for i, field := range fields {
+			// Print newline instead of delimiter for
+			// final column.
+			if i == len(fields)-1 {
+				d = "\n"
+			}
+
+			width := mergedExtents[i].width()
+			if *optLeftJustify {
+				left(width, field, d)
+			} else if *optRightJustify {
+				right(width, field, d)
+			} else {
+				// Right justify if number; otherwise
+				// left justify
+				if _, err := strconv.ParseFloat(field, 64); err == nil {
+					right(width, field, d)
+				} else {
+					left(width, field, d)
+				}
+			}
+		}
+	}
+	// Dump remaining contents of circular buffer.
+	for _, line := range cb.Drain() {
+		fmt.Println(line.(string))
+	}
+	return nil
+}
+
+func left(width int, field, delimiter string) {
+	fmt.Printf("%-*s%s", width, field, delimiter)
+}
+func right(width int, field, delimiter string) {
+	fmt.Printf("%*s%s", width, field, delimiter)
+}
