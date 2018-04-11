@@ -131,11 +131,7 @@ func process(ior io.Reader) error {
 		}
 	}
 	// Dump remaining contents of circular buffer.
-	for {
-		line := cb.QueueDequeue(nil)
-		if line == nil {
-			break
-		}
+	for _, line := range cb.Drain() {
 		fmt.Printf("%s\n", line.(string))
 	}
 	return nil
