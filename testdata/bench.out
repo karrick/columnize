@@ -1,0 +1,15 @@
+goos: android
+goarch: 386
+pkg: github.com/karrick/tparse
+BenchmarkAddDuration                        	 1000000	      1045 ns/op	       0 B/op	       0 allocs/op
+BenchmarkParseDurationPseudoStandardLibrary 	  500000	      3485 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAddDurationStandardLibrary         	  500000	      3655 ns/op	       0 B/op	       0 allocs/op
+BenchmarkParseNowMinusDuration              	  500000	      3432 ns/op	       0 B/op	       0 allocs/op
+BenchmarkParseNowMinusDurationGoParseTime   	   50000	     38410 ns/op	      20 B/op	       3 allocs/op
+BenchmarkParseWithMapEpoch                  	 2000000	       866 ns/op	       0 B/op	       0 allocs/op
+BenchmarkParseWithMapKeyedValue             	 5000000	       389 ns/op	       0 B/op	       0 allocs/op
+BenchmarkParseWithMapKeyedValueAndDuration  	 2000000	       854 ns/op	       0 B/op	       0 allocs/op
+BenchmarkParseRFC3339                       	  500000	      2453 ns/op	      32 B/op	       1 allocs/op
+BenchmarkParseRFC3339StandardLibrary        	 1000000	      1319 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/karrick/tparse	18.931s

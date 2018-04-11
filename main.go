@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -13,26 +14,38 @@ import (
 )
 
 var (
-	delimiter    = golf.StringP('d', "delimiter", " ", "column delimiter")
-	ignoreHeader = golf.BoolP('s', "skip-header", false, "Same as --ignore-head 0")
-	ignoreHead   = golf.Int("ignore-head", 0, "ignore N lines from header when formatting columns")
-	leftJustify  = golf.BoolP('l', "left", false, "left-justify all columns")
-	rightJustify = golf.BoolP('r', "right", false, "right-justify all columns")
+	optDelimiter    = golf.StringP('d', "delimiter", "  ", "output column delimiter")
+	optHeaderLines  = golf.Int("header", 0, "ignore N lines from header when formatting columns")
+	optFooterLines  = golf.Int("footer", 0, "ignore N lines from footer when formatting columns")
+	optLeftJustify  = golf.BoolP('l', "left", false, "left-justify all columns")
+	optRightJustify = golf.BoolP('r', "right", false, "right-justify all columns")
 )
 
 func main() {
+	optHelp := golf.BoolP('h', "help", false, "Print command line help and exit")
+	optIgnoreHeader := golf.BoolP('s', "skip-header", false, "Same as --ignore-head 1")
 	golf.Parse()
+	if *optHeaderLines == 0 && *optIgnoreHeader {
+		*optHeaderLines = 1
+	}
+
+	if *optHelp {
+		fmt.Fprintf(os.Stderr, "%s\n", filepath.Base(os.Args[0]))
+		if *optHelp {
+			fmt.Fprintln(os.Stderr, "        Like `column -t`, but right justifies columns that are all numbers.")
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, "Reads input from multiple files specified on the command line or from standard input when no files are specified.")
+			fmt.Fprintln(os.Stderr)
+			golf.Usage()
+		}
+		exit(nil)
+	}
 
 	var ior io.Reader
 	if golf.NArg() == 0 {
 		ior = os.Stdin
 	} else {
 		ior = &gorill.FilesReader{Pathnames: golf.Args()}
-	}
-
-	if *ignoreHeader {
-		*ignoreHead = 1
-		*ignoreHeader = false
 	}
 
 	exit(process(ior))
@@ -47,42 +60,38 @@ func exit(err error) {
 }
 
 func process(ior io.Reader) error {
+	cb, err := newCircularBuffer(*optFooterLines)
+	if err != nil {
+		return err
+	}
+
 	var lines [][]string
-	widths := make(map[int]int, 16)         // pre-allocate 16 columns
-	rightJustifys := make(map[int]bool, 16) // pre-allocate 16 columns
+	widths := make(map[int]int, 16) // pre-allocate 16 columns
 
 	br := gobls.NewScanner(ior)
 
 	var lineNumber int
 
 	for br.Scan() {
-		lineNumber++
-		if *ignoreHead > 0 && lineNumber <= *ignoreHead {
-			fmt.Printf("%s\n", br.Text())
+		if *optHeaderLines > 0 {
+			// only need to count lines while ignoring headers
+			if lineNumber++; lineNumber <= *optHeaderLines {
+				fmt.Printf("%s\n", br.Text())
+				continue
+			}
+		}
+
+		// Use a cirular buffer, so we are processing the Nth
+		// previous line.
+		line := cb.QueueDequeue(br.Text())
+		if line == nil {
 			continue
 		}
 
-		fields := strings.Fields(strings.TrimSpace(br.Text()))
+		fields := strings.Fields(strings.TrimSpace(line.(string)))
 		for i, field := range fields {
-			width := len(field)
-			previousWidth := widths[i]
-			if width > previousWidth {
-				widths[i] = width
-			}
-			if !(*leftJustify || *rightJustify) {
-				// NOTE: If either first time this column observed, i.e., likely
-				// only for first line of input, or all previous fields in this
-				// column have been numbers...
-				if rj, ok := rightJustifys[i]; !ok || rj {
-					_, err := strconv.ParseFloat(field, 64)
-					if err != nil {
-						// not a number; mark this column as left justify
-						rightJustifys[i] = false
-					} else if !ok {
-						// first time column observed, and is a number
-						rightJustifys[i] = true
-					}
-				}
+			if width := len(field); width > widths[i] { // if width wider than previous width
+				widths[i] = width // save this width as new widest width
 			}
 		}
 		lines = append(lines, fields)
@@ -90,29 +99,41 @@ func process(ior io.Reader) error {
 	if err := br.Err(); err != nil {
 		return err
 	}
+	// All input has been read (and header has even been printed).
 	for _, line := range lines {
-		d := *delimiter
+		d := *optDelimiter
 		for i := 0; i < len(line); i++ {
+			// Print newline instead of delimiter for
+			// final column.
 			if i == len(line)-1 {
-				d = "" // do not emit trailing delimiter
+				d = "\n"
 			}
 
 			field := line[i]
 			width := widths[i]
 
-			if *leftJustify {
+			if *optLeftJustify {
 				left(width, field, d)
-			} else if *rightJustify {
+			} else if *optRightJustify {
 				right(width, field, d)
 			} else {
-				if rightJustifys[i] {
+				// Right justify if number; otherwise
+				// left justify
+				if _, err := strconv.ParseFloat(field, 64); err == nil {
 					right(width, field, d)
 				} else {
 					left(width, field, d)
 				}
 			}
 		}
-		fmt.Println()
+	}
+	// Dump remaining contents of circular buffer.
+	for {
+		line := cb.QueueDequeue(nil)
+		if line == nil {
+			break
+		}
+		fmt.Printf("%s\n", line.(string))
 	}
 	return nil
 }

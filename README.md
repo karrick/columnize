@@ -1,6 +1,8 @@
 # columnize
 
-Like `column -t`, but right justifies columns that are all numbers.
+Like `column -t`, but right justifies fields that are numbers, and can
+be configured to ignore header and footer lines for the purpose of
+determining field widths.
 
 ## Usage
 
@@ -16,45 +18,49 @@ However, more than a single file can be provided on the command line:
 
     $ columnize benchmarks-a.out benchmarks-b.out
 
+### Header and Footer
+
 By default this program inspects fields on every line to determine max
-field width and whether the field is numerical. By default numerical
-fields are right justified and non-numerical fields are left
-justified.
+field width. When the `--header N` flag is provided, this program
+instead blindly copies the first N lines of input directly to its
+standard output without checking column widths.
 
-### Skip Header
+Similarly, when the `--footer N` flag is provided, this program
+blindly copies the final N lines of input directly to its standard
+output without checking column widths.
 
-When the `-s` command line option is provided this program still uses
-the first line of input for column width determination, but ignores
-the fields in the first line when determining whether the column is
-numerical.
+Compare the output of the following two commands.
+
+    $ columnize testdata/bench.out
+    $ columnize --header 3 --footer 2 testdata/bench.out
+
+### Skip Header (deprecated: see --header flag)
+
+The `--skip-header, -s` flag behaves exactly as if the `--header 1`
+flag were provided.
 
 ### Left Justify
 
 When the `-l` command line option is provided, all columns will be
 left justified.
 
-```
-columnize -l input.txt
-```
+    $ columnize -l input.txt
 
 ### Right Justify
 
 When the `-r` command line option is provided, all columns will be
 right justified.
 
-```
-columnize -r input.txt
-```
+    $ columnize -r input.txt
 
-## Specifying a Delimiter
+## Output Formating Delimiter
 
-By default this program splits each line by whitespace. When the `-d
-S` command line option is given, it uses the provided string as the
-field delimiter. `S` may be a string of multiple characters.
+By default this program uses a minimum of two space characters between
+the columns in the output. The `--delimiter, -d` flag may be used to
+specify a different joining string between output columns. This string
+may be one or more characters.
 
-```
-columnize -d : input.txt
-```
+    $ columnize -d " | " input.txt
 
 ## Installation
 
@@ -64,6 +70,4 @@ need to install a copy from
 
 Once you have Go installed:
 
-```
-go get github.com/karrick/columnize
-```
+    $ go get github.com/karrick/columnize
