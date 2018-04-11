@@ -1,7 +1,7 @@
 # columnize
 
-Like `column -t`, but right justifies fields that are numbers, and can
-be configured to ignore header and footer lines for the purpose of
+Like `column -t`, but right justifies numerical fields, and can be
+configured to ignore header and footer lines for the purpose of
 determining field widths.
 
 ## Usage

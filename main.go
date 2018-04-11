@@ -14,17 +14,18 @@ import (
 )
 
 var (
-	optDelimiter    = golf.StringP('d', "delimiter", "  ", "output column delimiter")
 	optHeaderLines  = golf.Int("header", 0, "ignore N lines from header when formatting columns")
 	optFooterLines  = golf.Int("footer", 0, "ignore N lines from footer when formatting columns")
+	optDelimiter    = golf.StringP('d', "delimiter", "  ", "output column delimiter")
 	optLeftJustify  = golf.BoolP('l', "left", false, "left-justify all columns")
 	optRightJustify = golf.BoolP('r', "right", false, "right-justify all columns")
 )
 
 func main() {
 	optHelp := golf.BoolP('h', "help", false, "Print command line help and exit")
-	optIgnoreHeader := golf.BoolP('s', "skip-header", false, "Same as --ignore-head 1")
+	optIgnoreHeader := golf.BoolP('s', "skip-header", false, "Same as `--header 1`")
 	golf.Parse()
+
 	if *optHeaderLines == 0 && *optIgnoreHeader {
 		*optHeaderLines = 1
 	}
@@ -32,10 +33,8 @@ func main() {
 	if *optHelp {
 		fmt.Fprintf(os.Stderr, "%s\n", filepath.Base(os.Args[0]))
 		if *optHelp {
-			fmt.Fprintln(os.Stderr, "        Like `column -t`, but right justifies columns that are all numbers.")
-			fmt.Fprintln(os.Stderr)
-			fmt.Fprintln(os.Stderr, "Reads input from multiple files specified on the command line or from standard input when no files are specified.")
-			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, "        Like `column -t`, but right justifies numerical fields.\n")
+			fmt.Fprintln(os.Stderr, "Reads input from multiple files specified on the command line or from standard\ninput when no files are specified.\n")
 			golf.Usage()
 		}
 		exit(nil)
@@ -60,6 +59,7 @@ func exit(err error) {
 }
 
 func process(ior io.Reader) error {
+	// Use a cirular buffer, so we are processing the Nth previous line.
 	cb, err := newCircularBuffer(*optFooterLines)
 	if err != nil {
 		return err
@@ -74,15 +74,16 @@ func process(ior io.Reader) error {
 
 	for br.Scan() {
 		if *optHeaderLines > 0 {
-			// only need to count lines while ignoring headers
+			// Only need to count lines while ignoring headers.
 			if lineNumber++; lineNumber <= *optHeaderLines {
 				fmt.Printf("%s\n", br.Text())
 				continue
 			}
+			// No reason to count lines any longer.
+			*optHeaderLines = 0
 		}
 
-		// Use a cirular buffer, so we are processing the Nth
-		// previous line.
+		// Recall circular buffer always gives us Nth previous line.
 		line := cb.QueueDequeue(br.Text())
 		if line == nil {
 			continue
@@ -91,7 +92,7 @@ func process(ior io.Reader) error {
 		fields := strings.Fields(strings.TrimSpace(line.(string)))
 		for i, field := range fields {
 			if width := len(field); width > widths[i] { // if width wider than previous width
-				widths[i] = width // save this width as new widest width
+				widths[i] = width // save this width as new widest width for this column
 			}
 		}
 		lines = append(lines, fields)
@@ -99,7 +100,9 @@ func process(ior io.Reader) error {
 	if err := br.Err(); err != nil {
 		return err
 	}
-	// All input has been read (and header has even been printed).
+	// All input has been read (and header has even been printed). Pretty print
+	// all lines collected thus far, remembering that there may be N lines left
+	// in the circular buffer remaining to be processed.
 	for _, line := range lines {
 		d := *optDelimiter
 		for i := 0; i < len(line); i++ {
