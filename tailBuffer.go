@@ -33,7 +33,7 @@ func (tb *tailBuffer) QueueDequeue(newItem interface{}) interface{} {
 
 	// Swap item previously stored at index with new item.
 	prevItem := tb.items[tb.index]
-	tb.items[tb.index] = newItem  
+	tb.items[tb.index] = newItem
 
 	// Increment index making note whether it wraps.
 	if tb.index++; tb.index == cap(tb.items) {
