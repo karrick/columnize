@@ -60,7 +60,7 @@ func exit(err error) {
 
 func process(ior io.Reader) error {
 	// Use a cirular buffer, so we are processing the Nth previous line.
-	cb, err := newCircularBuffer(*optFooterLines)
+	cb, err := newTailBuffer(*optFooterLines)
 	if err != nil {
 		return err
 	}

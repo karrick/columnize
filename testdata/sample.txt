@@ -1,6 +1,0 @@
-BenchmarkNewCodecV4-8   	    5000	    249414 ns/op	   99045 B/op	    1931 allocs/op
-BenchmarkNewCodecV5-8   	   10000	    144038 ns/op	   47254 B/op	     893 allocs/op
-BenchmarkDecodeV4-8     	      10	 138265638 ns/op	64315688 B/op	 1622961 allocs/op
-BenchmarkDecodeV5-8     	      50	  34238699 ns/op	15262694 B/op	  393141 allocs/op
-BenchmarkEncodeV4-8     	      50	  27993257 ns/op	 1261652 B/op	  151730 allocs/op
-BenchmarkEncodeV5-8     	     100	  12497825 ns/op	 1553816 B/op	  155430 allocs/op
