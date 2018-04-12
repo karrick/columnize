@@ -124,4 +124,3 @@ func fieldsFromExtents(line string, extents []extent) []string {
 
 	return fields
 }
-

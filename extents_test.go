@@ -157,7 +157,7 @@ func TestTwoLines(t *testing.T) {
 	ee1 := extentsFromLine("one    two    three")
 	ee2 := extentsFromLine(" one            three")
 	ee3 := mergeExtents(ee1, ee2)
-	
+
 	if got, want := len(ee3), 3; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
@@ -201,39 +201,39 @@ func TestFieldsFromExtents(t *testing.T) {
 
 	t.Run("nothing missing", func(t *testing.T) {
 		fields := fieldsFromExtents(line, ee)
-    	if got, want := len(fields), 3; got != want {
-    		t.Fatalf("GOT: %v; WANT: %v", got, want)
-    	}
-    	// first
-    	if got, want := fields[0], "one"; got != want {
-    		t.Errorf("GOT: %#v; WANT: %#v", got, want)
-    	}
-    	// second
-    	if got, want := fields[1], "two"; got != want {
-    		t.Errorf("GOT: %#v; WANT: %#v", got, want)
-    	}
-    	// third
-    	if got, want := fields[2], "three"; got != want {
-    		t.Errorf("GOT: %#v; WANT: %#v", got, want)
-    	}
-   	})
+		if got, want := len(fields), 3; got != want {
+			t.Fatalf("GOT: %v; WANT: %v", got, want)
+		}
+		// first
+		if got, want := fields[0], "one"; got != want {
+			t.Errorf("GOT: %#v; WANT: %#v", got, want)
+		}
+		// second
+		if got, want := fields[1], "two"; got != want {
+			t.Errorf("GOT: %#v; WANT: %#v", got, want)
+		}
+		// third
+		if got, want := fields[2], "three"; got != want {
+			t.Errorf("GOT: %#v; WANT: %#v", got, want)
+		}
+	})
 
 	t.Run("column missing", func(t *testing.T) {
 		fields := fieldsFromExtents("one           three", ee)
-    	if got, want := len(fields), 3; got != want {
-    		t.Fatalf("GOT: %v; WANT: %v", got, want)
-    	}
-    	// first
-    	if got, want := fields[0], "one"; got != want {
-    		t.Errorf("GOT: %v; WANT: %v", got, want)
-    	}
-    	// second
-    	if got, want := fields[1], ""; got != want {
-    		t.Errorf("GOT: %v; WANT: %v", got, want)
-    	}
-    	// third
-    	if got, want := fields[2], "three"; got != want {
-    		t.Errorf("GOT: %v; WANT: %v", got, want)
-    	}
+		if got, want := len(fields), 3; got != want {
+			t.Fatalf("GOT: %v; WANT: %v", got, want)
+		}
+		// first
+		if got, want := fields[0], "one"; got != want {
+			t.Errorf("GOT: %v; WANT: %v", got, want)
+		}
+		// second
+		if got, want := fields[1], ""; got != want {
+			t.Errorf("GOT: %v; WANT: %v", got, want)
+		}
+		// third
+		if got, want := fields[2], "three"; got != want {
+			t.Errorf("GOT: %v; WANT: %v", got, want)
+		}
 	})
 }
