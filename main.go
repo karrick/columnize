@@ -58,8 +58,8 @@ func exit(err error) {
 }
 
 func process(ior io.Reader) error {
-	// Use a cirular buffer, so we are processing the Nth previous line.
-	cb, err := newCircularBuffer(*optFooterLines)
+	// Use a tail buffer, so we are processing the Nth previous line.
+	cb, err := newTailBuffer(*optFooterLines)
 	if err != nil {
 		return err
 	}
@@ -80,12 +80,11 @@ func process(ior io.Reader) error {
 			*optHeaderLines = 0
 		}
 
-		// Recall circular buffer always gives us Nth previous line.
+		// Get the Nth previous line from tail buffer.
 		line := cb.QueueDequeue(br.Text())
 		if line == nil {
-			continue
+			continue // fewer than N lines inserted into tail buffer
 		}
-
 		l := line.(string)
 		lines = append(lines, l)
 		mergedExtents = mergeExtents(mergedExtents, extentsFromLine(l))
@@ -95,13 +94,12 @@ func process(ior io.Reader) error {
 	}
 	// All input has been read (and header has even been printed). Pretty print
 	// all lines collected thus far, remembering that there may be N lines left
-	// in the circular buffer remaining to be processed.
+	// in the tail buffer remaining to be processed.
 	for _, line := range lines {
 		d := *optDelimiter
 		fields := fieldsFromExtents(line, mergedExtents)
 		for i, field := range fields {
-			// Print newline instead of delimiter for
-			// final column.
+			// When final column, print newline instead of delimiter.
 			if i == len(fields)-1 {
 				d = "\n"
 			}
@@ -122,7 +120,8 @@ func process(ior io.Reader) error {
 			}
 		}
 	}
-	// Dump remaining contents of circular buffer.
+	// Dump remaining contents of tail buffer, which is considered the footer
+	// lines.
 	for _, line := range cb.Drain() {
 		fmt.Println(line.(string))
 	}
@@ -132,6 +131,7 @@ func process(ior io.Reader) error {
 func left(width int, field, delimiter string) {
 	fmt.Printf("%-*s%s", width, field, delimiter)
 }
+
 func right(width int, field, delimiter string) {
 	fmt.Printf("%*s%s", width, field, delimiter)
 }

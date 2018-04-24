@@ -24,10 +24,10 @@ func TestExtentsSingleItemNoWhiteSpace(t *testing.T) {
 	if got, want := len(ee), 1; got != want {
 		t.Fatalf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee[0].l, 1; got != want {
+	if got, want := ee[0].lc, 1; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee[0].r, 4; got != want {
+	if got, want := ee[0].rc, 4; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 }
@@ -37,10 +37,10 @@ func TestExtentsSingleItemWithWhiteSpace(t *testing.T) {
 	if got, want := len(ee), 1; got != want {
 		t.Fatalf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee[0].l, 2; got != want {
+	if got, want := ee[0].lc, 2; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee[0].r, 5; got != want {
+	if got, want := ee[0].rc, 5; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 }
@@ -51,17 +51,17 @@ func TestExtentsTwoItemsWithoutWhiteSpace(t *testing.T) {
 		t.Fatalf("GOT: %v; WANT: %v", got, want)
 	}
 	// one
-	if got, want := ee[0].l, 1; got != want {
+	if got, want := ee[0].lc, 1; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee[0].r, 3; got != want {
+	if got, want := ee[0].rc, 3; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	// two
-	if got, want := ee[1].l, 5; got != want {
+	if got, want := ee[1].lc, 5; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee[1].r, 7; got != want {
+	if got, want := ee[1].rc, 7; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 }
@@ -72,17 +72,17 @@ func TestExtentsTwoItemsWithWhitespace(t *testing.T) {
 		t.Fatalf("GOT: %v; WANT: %v", got, want)
 	}
 	// one
-	if got, want := ee[0].l, 2; got != want {
+	if got, want := ee[0].lc, 2; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee[0].r, 4; got != want {
+	if got, want := ee[0].rc, 4; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	// two
-	if got, want := ee[1].l, 6; got != want {
+	if got, want := ee[1].lc, 6; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee[1].r, 8; got != want {
+	if got, want := ee[1].rc, 8; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 }
@@ -90,29 +90,29 @@ func TestExtentsTwoItemsWithWhitespace(t *testing.T) {
 ////////////////////////////////////////
 
 func TestExtentsMergeWithoutOverlap(t *testing.T) {
-	ee, ok := attemptMerge(extent{l: 11, r: 15}, extent{l: 6, r: 8})
+	ee, ok := attemptMerge(extent{lc: 11, rc: 15}, extent{lc: 6, rc: 8})
 
 	if got, want := ok, false; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee.l, 0; got != want {
+	if got, want := ee.lc, 0; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee.r, 0; got != want {
+	if got, want := ee.rc, 0; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 }
 
 func TestExtentsMergeWithOverlap(t *testing.T) {
-	ee, ok := attemptMerge(extent{l: 1, r: 3}, extent{l: 2, r: 3})
+	ee, ok := attemptMerge(extent{lc: 1, rc: 3}, extent{lc: 2, rc: 3})
 
 	if got, want := ok, true; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee.l, 1; got != want {
+	if got, want := ee.lc, 1; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee.r, 3; got != want {
+	if got, want := ee.rc, 3; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 }
@@ -120,8 +120,8 @@ func TestExtentsMergeWithOverlap(t *testing.T) {
 ////////////////////////////////////////
 
 func TestMergeExtentSlices(t *testing.T) {
-	ee1 := []extent{extent{l: 1, r: 3}, extent{l: 11, r: 15}}
-	ee2 := []extent{extent{l: 2, r: 5}, extent{l: 6, r: 8}, extent{l: 10, r: 12}}
+	ee1 := []extent{extent{lc: 1, rc: 3}, extent{lc: 11, rc: 15}}
+	ee2 := []extent{extent{lc: 2, rc: 5}, extent{lc: 6, rc: 8}, extent{lc: 10, rc: 12}}
 
 	ee3 := mergeExtents(ee1, ee2)
 
@@ -129,24 +129,24 @@ func TestMergeExtentSlices(t *testing.T) {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	// first
-	if got, want := ee3[0].l, 1; got != want {
+	if got, want := ee3[0].lc, 1; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee3[0].r, 5; got != want {
+	if got, want := ee3[0].rc, 5; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	// second
-	if got, want := ee3[1].l, 6; got != want {
+	if got, want := ee3[1].lc, 6; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee3[1].r, 8; got != want {
+	if got, want := ee3[1].rc, 8; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	// third
-	if got, want := ee3[2].l, 10; got != want {
+	if got, want := ee3[2].lc, 10; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee3[2].r, 15; got != want {
+	if got, want := ee3[2].rc, 15; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 }
@@ -162,30 +162,30 @@ func TestTwoLines(t *testing.T) {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	// first
-	if got, want := ee3[0].l, 1; got != want {
+	if got, want := ee3[0].lc, 1; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee3[0].r, 4; got != want {
+	if got, want := ee3[0].rc, 4; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	if got, want := ee3[0].width(), 4; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	// second
-	if got, want := ee3[1].l, 8; got != want {
+	if got, want := ee3[1].lc, 8; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee3[1].r, 10; got != want {
+	if got, want := ee3[1].rc, 10; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	if got, want := ee3[1].width(), 3; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	// third
-	if got, want := ee3[2].l, 15; got != want {
+	if got, want := ee3[2].lc, 15; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
-	if got, want := ee3[2].r, 21; got != want {
+	if got, want := ee3[2].rc, 21; got != want {
 		t.Errorf("GOT: %v; WANT: %v", got, want)
 	}
 	if got, want := ee3[2].width(), 7; got != want {

@@ -8,32 +8,40 @@ import (
 const defaultFieldCount = 16
 
 type extent struct {
-	l, r int
+	lc, rc int // column boundaries of word
 }
 
-func (e extent) width() int { return 1 + e.r - e.l }
+func (e extent) width() int { return 1 + e.rc - e.lc }
 
 func extentsFromLine(line string) []extent {
 	ee := make([]extent, 0, defaultFieldCount)
 	var inWord bool
-	var column int   // column within line
-	var wordLeft int // column where word starts
+	var column int // column within line
+	var lc int     // column where word starts
 
 	// Loop thru runes in line, splitting into extents.
 	for _, r := range line {
 		column++
 		if unicode.IsSpace(r) != inWord {
-			continue // slurping either word or non-word
+			continue // no change; continue slurping
 		}
 		inWord = !inWord // toggle state
 		if inWord {
-			wordLeft = column
+			// store column and index where word began
+			lc = column
 		} else {
-			ee = append(ee, extent{l: wordLeft, r: column - 1})
+			// no longer in a word; store field extent
+			ee = append(ee, extent{
+				lc: lc,
+				rc: column - 1,
+			})
 		}
 	}
 	if inWord {
-		ee = append(ee, extent{l: wordLeft, r: column})
+		ee = append(ee, extent{
+			lc: lc,
+			rc: column,
+		})
 	}
 	return ee
 }
@@ -46,21 +54,21 @@ func extentsFromLine(line string) []extent {
 // extents for a given line, but if two extents share any columns, they are
 // the same extent.
 func attemptMerge(ee1, ee2 extent) (extent, bool) {
-	if ee1.r < ee2.l {
+	if ee1.rc < ee2.lc {
 		return extent{}, false
 	}
-	if ee2.r < ee1.l {
+	if ee2.rc < ee1.lc {
 		return extent{}, false
 	}
-	minL := ee1.l
-	if ee2.l < minL {
-		minL = ee2.l
+	minL := ee1.lc
+	if ee2.lc < minL {
+		minL = ee2.lc
 	}
-	maxR := ee1.r
-	if ee2.r > maxR {
-		maxR = ee2.r
+	maxR := ee1.rc
+	if ee2.rc > maxR {
+		maxR = ee2.rc
 	}
-	return extent{l: minL, r: maxR}, true
+	return extent{lc: minL, rc: maxR}, true
 }
 
 // INPUT: two slices of extents, some of which will overlap.
@@ -85,7 +93,7 @@ func mergeExtents(ee1, ee2 []extent) []extent {
 			continue
 		}
 		// not mergeable, so pick smaller one
-		if ee1[ee1i].l < ee2[ee2i].l {
+		if ee1[ee1i].lc < ee2[ee2i].lc {
 			ee3 = append(ee3, ee1[ee1i])
 			ee1i++
 			continue
@@ -98,28 +106,38 @@ func mergeExtents(ee1, ee2 []extent) []extent {
 }
 
 func fieldsFromExtents(line string, extents []extent) []string {
+	// Walk through the line, rune by rune, tracking the column. Note the byte
+	// index into the line may change by more than one byte, depending on the
+	// width of a particular rune.
+	//
+	// When the column number lines up with the left edge of the first extent,
+	// track that column position.
+
+	// Recall that extent is column based rather than index of byte.
+	var column, wordStart int
+	var index int // index into both extents and fields slices
+
 	fields := make([]string, len(extents))
 
-	// recall that extent is column number rather than byte index
-	var ei, column, wordStart int
-
-	for _, _ = range line {
-		if column++; column < extents[ei].l {
+	for range line {
+		if column++; column < extents[index].lc {
 			continue // before the extent starts
 		}
-		if column == extents[ei].l {
+		if column == extents[index].lc {
 			wordStart = column
 			continue
 		}
-		if column > extents[ei].r {
-			fields[ei] = strings.TrimSpace(line[wordStart-1 : column])
-			if ei++; ei == len(extents) {
-				break // no need keep reading line
+		if column > extents[index].rc {
+			fields[index] = strings.TrimSpace(line[wordStart-1 : column])
+			if index++; index == len(extents) {
+				break // no need to keep reading line
 			}
 		}
 	}
-	if ei < len(extents) {
-		fields[ei] = strings.TrimSpace(line[wordStart-1 : column])
+	if wordStart > 0 && index < len(extents) {
+		// If started tracking a word, but did not find the end (because word
+		// ends at the end of the line)
+		fields[index] = strings.TrimSpace(line[wordStart-1 : column])
 	}
 
 	return fields
