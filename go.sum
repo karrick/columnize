@@ -10,3 +10,5 @@ github.com/karrick/gorill v1.3.0 h1:igfiRQx2yi8oXnPtxgJ/pBHs+IJBgnZ0InZfSKBfrzg=
 github.com/karrick/gorill v1.3.0/go.mod h1:urx65/Lk/pupwNuP+jFSHBpBsFEmy1dLSOWpgOCeD/I=
 github.com/karrick/gorill v1.5.0 h1:V4EPK9yCkfMBFAIMyL04kfBrG9v4zSoRtHAoWMnMrH0=
 github.com/karrick/gorill v1.5.0/go.mod h1:urx65/Lk/pupwNuP+jFSHBpBsFEmy1dLSOWpgOCeD/I=
+github.com/karrick/gorill v1.6.0 h1:q64wpKfKfuklxNVmkvnnkdI4iEebVyz5F5cdQ9MoyqU=
+github.com/karrick/gorill v1.6.0/go.mod h1:RlCfg3XIDNF2pbami04hiO2Yj7k8es4rIs3dJONvCs0=
