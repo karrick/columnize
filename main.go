@@ -33,8 +33,8 @@ func main() {
 	if *optHelp {
 		fmt.Fprintf(os.Stderr, "%s\n", filepath.Base(os.Args[0]))
 		if *optHelp {
-			fmt.Fprintln(os.Stderr, "        Like `column -t`, but right justifies numerical fields.\n")
-			fmt.Fprintln(os.Stderr, "Reads input from multiple files specified on the command line or from standard\ninput when no files are specified.\n")
+			fmt.Fprintf(os.Stderr, "        Like `column -t`, but right justifies numerical fields.\n")
+			fmt.Fprintf(os.Stderr, "Reads input from multiple files specified on the command line or from standard\ninput when no files are specified.\n")
 			golf.Usage()
 		}
 		exit(nil)
