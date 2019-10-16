@@ -2,144 +2,130 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 
-	"github.com/karrick/gobls"
 	"github.com/karrick/golf"
-	"github.com/karrick/gorill"
 )
 
 var (
-	optHeaderLines  = golf.Int("header", 0, "ignore N lines from header when formatting columns")
-	optFooterLines  = golf.Int("footer", 0, "ignore N lines from footer when formatting columns")
-	optDelimiter    = golf.StringP('d', "delimiter", "  ", "output column delimiter")
-	optLeftJustify  = golf.BoolP('l', "left", false, "left-justify all columns")
-	optRightJustify = golf.BoolP('r', "right", false, "right-justify all columns")
+	ProgramName            string
+	ProgramLongDescription string
+	ProgramOneLineSummary  string
+	ProgramUsageExamples   string
+	ProgramVersion         = "0.0.0"
+
+	optHelp    = golf.BoolP('h', "help", false, "Print command line help and exit")
+	optVersion = golf.BoolP('V', "version", false, "Print version information and exit")
+
+	optQuiet   = golf.BoolP('q', "quiet", false, "Do not print intermediate errors to stderr")
+	optVerbose = golf.BoolP('v', "verbose", false, "Print verbose output to stderr")
 )
 
+func init() {
+	var err error
+	if ProgramName, err = os.Executable(); err != nil {
+		ProgramName = os.Args[0]
+	}
+	ProgramName = filepath.Base(ProgramName)
+
+	// Rather than display the entire usage information for a parsing error,
+	// merely allow golf library to display the error message, then print the
+	// command the user may use to show command line usage information.
+	golf.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Use `%s --help` for more information.\n", ProgramName)
+	}
+}
+
 func main() {
-	optHelp := golf.BoolP('h', "help", false, "Print command line help and exit")
-	optIgnoreHeader := golf.BoolP('s', "skip-header", false, "Same as `--header 1`")
 	golf.Parse()
 
-	if *optHeaderLines == 0 && *optIgnoreHeader {
-		*optHeaderLines = 1
-	}
-
 	if *optHelp {
-		fmt.Fprintf(os.Stderr, "%s\n", filepath.Base(os.Args[0]))
-		if *optHelp {
-			fmt.Fprintf(os.Stderr, "        Like `column -t`, but right justifies numerical fields.\n\n")
-			fmt.Fprintf(os.Stderr, "Reads input from multiple files specified on the command line or from standard\ninput when no files are specified.\n\n")
-			golf.Usage()
+		fmt.Fprintf(os.Stderr, "%s version %s\n\n", ProgramName, ProgramVersion)
+		if ProgramLongDescription != "" {
+			fmt.Fprintln(os.Stderr, ProgramLongDescription)
 		}
-		exit(nil)
+		if ProgramUsageExamples != "" {
+			fmt.Fprintln(os.Stderr, ProgramUsageExamples)
+		}
+		fmt.Fprintln(os.Stderr, "Command line options:")
+		golf.PrintDefaults()
+		os.Exit(0)
 	}
 
-	var ior io.Reader
-	if golf.NArg() == 0 {
-		ior = os.Stdin
-	} else {
-		ior = &gorill.FilesReader{Pathnames: golf.Args()}
+	if *optVersion {
+		fmt.Fprintf(os.Stderr, "%s version %s; %s; `%s --help` for more information.\n", ProgramName, ProgramVersion, ProgramOneLineSummary, ProgramName)
+		os.Exit(0)
 	}
 
-	exit(process(ior))
-}
-
-func exit(err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+	if err := cmd(); err != nil {
+		if _, ok := err.(ErrUsage); ok {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", ProgramName, err)
+			golf.Usage()
+			os.Exit(2)
+		}
+		stderr("%s", newline(err.Error()))
 		os.Exit(1)
 	}
-	os.Exit(0)
 }
 
-func process(ior io.Reader) error {
-	// Use a cirular buffer, so we are processing the Nth previous line.
-	cb, err := newTailBuffer(*optFooterLines)
-	if err != nil {
-		return err
+// newline returns a string with exactly one terminating newline character.
+// More simple than strings.TrimRight.  When input string has multiple newline
+// characters, it will strip off all but first one, reusing the same underlying
+// string bytes.  When string does not end in a newline character, it returns
+// the original string with a newline character appended.
+func newline(s string) string {
+	l := len(s)
+	if l == 0 {
+		return "\n"
 	}
 
-	var lines [][]string
-	widths := make(map[int]int, 16) // pre-allocate 16 columns
+	// While this is O(length s), it stops as soon as it finds the first non
+	// newline character in the string starting from the right hand side of the
+	// input string.  Generally this only scans one or two characters and
+	// returns.
 
-	br := gobls.NewScanner(ior)
-
-	var lineNumber int
-
-	for br.Scan() {
-		if *optHeaderLines > 0 {
-			// Only need to count lines while ignoring headers.
-			if lineNumber++; lineNumber <= *optHeaderLines {
-				fmt.Printf("%s\n", br.Text())
-				continue
+	for i := l - 1; i >= 0; i-- {
+		if s[i] != '\n' {
+			if i+1 < l && s[i+1] == '\n' {
+				return s[:i+2]
 			}
-			// No reason to count lines any longer.
-			*optHeaderLines = 0
-		}
-
-		// Recall circular buffer always gives us Nth previous line.
-		line := cb.QueueDequeue(br.Text())
-		if line == nil {
-			continue
-		}
-
-		fields := strings.Fields(strings.TrimSpace(line.(string)))
-		for i, field := range fields {
-			if width := len(field); width > widths[i] { // if width wider than previous width
-				widths[i] = width // save this width as new widest width for this column
-			}
-		}
-		lines = append(lines, fields)
-	}
-	if err := br.Err(); err != nil {
-		return err
-	}
-	// All input has been read (and header has even been printed). Pretty print
-	// all lines collected thus far, remembering that there may be N lines left
-	// in the circular buffer remaining to be processed.
-	for _, line := range lines {
-		d := *optDelimiter
-		for i := 0; i < len(line); i++ {
-			// Print newline instead of delimiter for
-			// final column.
-			if i == len(line)-1 {
-				d = "\n"
-			}
-
-			field := line[i]
-			width := widths[i]
-
-			if *optLeftJustify {
-				left(width, field, d)
-			} else if *optRightJustify {
-				right(width, field, d)
-			} else {
-				// Right justify if number; otherwise
-				// left justify
-				if _, err := strconv.ParseFloat(field, 64); err == nil {
-					right(width, field, d)
-				} else {
-					left(width, field, d)
-				}
-			}
+			return s[:i+1] + "\n"
 		}
 	}
-	// Dump remaining contents of circular buffer.
-	for _, line := range cb.Drain() {
-		fmt.Printf("%s\n", line.(string))
-	}
-	return nil
+
+	return s[:1] // all newline characters, so just return the first one
 }
 
-func left(width int, field, delimiter string) {
-	fmt.Printf("%-*s%s", width, field, delimiter)
+// stderr formats and prints its arguments to standard error after prefixing
+// them with the program name.
+func stderr(f string, args ...interface{}) {
+	os.Stderr.Write([]byte(ProgramName + ": " + fmt.Sprintf(f, args...)))
 }
-func right(width int, field, delimiter string) {
-	fmt.Printf("%*s%s", width, field, delimiter)
+
+// verbose formats and prints its arguments to standard error after prefixing
+// them with the program name.  This skips printing when optVerbose is false.
+func verbose(f string, args ...interface{}) {
+	if *optVerbose {
+		os.Stderr.Write([]byte(ProgramName + ": " + fmt.Sprintf(f, args...)))
+	}
+}
+
+// warning formats and prints its arguments to standard error after prefixing
+// them with the program name.  This skips printing when optQuiet is true.
+func warning(f string, args ...interface{}) {
+	if !*optQuiet {
+		os.Stderr.Write([]byte(ProgramName + ": " + fmt.Sprintf(f, args...)))
+	}
+}
+
+// ErrUsage is returned by the program code it discovers a usage error when
+// parsing command line arguments.  It displays the error message, prints the
+// program usage information, then exists with program status code set to 2.
+type ErrUsage string
+
+func (e ErrUsage) Error() string { return string(e) }
+
+func NewErrUsage(f string, a ...interface{}) ErrUsage {
+	return ErrUsage(fmt.Sprintf(f, a...))
 }
