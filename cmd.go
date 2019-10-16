@@ -42,7 +42,7 @@ func cmd() error {
 		fmt.Println(golf.Wrap("Like `column -t`, but right justifies numerical fields. Reads input from multiple files specified on the command line or from standard input when no files are specified."))
 		fmt.Println(golf.Wrap("SUMMARY:  columnize [options] [file1 [file2 ...]] [options]"))
 		fmt.Println(golf.Wrap("USAGE:    Not all options may be used with all other options. See below synopsis for reference."))
-		fmt.Println("\tcolumnize\t[--quiet | --verbose]\n\t\t[--header N | --skip-header]\n\t\t[--delimiter STRING]\n\t\t[--left | --right]\n\t\t[--footer N]\n\t\t[file1 [file2 ...]]\n")
+		fmt.Printf("\tcolumnize\t[--quiet | --verbose]\n\t\t[--header N | --skip-header]\n\t\t[--delimiter STRING]\n\t\t[--left | --right]\n\t\t[--footer N]\n\t\t[file1 [file2 ...]]\n\n")
 		fmt.Println("EXAMPLES:")
 		fmt.Println("\tcolumnize < sample.txt")
 		fmt.Println("\tcolumnize sample.txt")
