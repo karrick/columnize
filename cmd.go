@@ -13,11 +13,19 @@ import (
 )
 
 func init() {
-	ProgramOneLineSummary = "Like `column -t`, but right justifies numerical fields"
-	ProgramLongDescription = "Reads input from multiple files specified on the command line or from standard input when no files are specified.\n"
+	// Rather than display the entire usage information for a parsing error,
+	// merely allow golf library to display the error message, then print the
+	// command the user may use to show command line usage information.
+	golf.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Use `%s --help` for more information.\n", ProgramName)
+	}
 }
 
 var (
+	optHelp    = golf.BoolP('h', "help", false, "Print command line help and exit")
+	optQuiet   = golf.BoolP('q', "quiet", false, "Do not print intermediate errors to stderr")
+	optVerbose = golf.BoolP('v', "verbose", false, "Print verbose output to stderr")
+
 	optDelimiter    = golf.StringP('d', "delimiter", "  ", "output column delimiter")
 	optFooterLines  = golf.Int("footer", 0, "ignore N lines from footer when formatting columns")
 	optHeaderLines  = golf.Int("header", 0, "ignore N lines from header when formatting columns")
@@ -27,6 +35,24 @@ var (
 )
 
 func cmd() error {
+	golf.Parse()
+
+	if *optHelp {
+		fmt.Printf("columnize\n\n")
+		fmt.Println(golf.Wrap("Like `column -t`, but right justifies numerical fields. Reads input from multiple files specified on the command line or from standard input when no files are specified."))
+		fmt.Println(golf.Wrap("SUMMARY:  columnize [options] [file1 [file2 ...]] [options]"))
+		fmt.Println(golf.Wrap("USAGE:    Not all options may be used with all other options. See below synopsis for reference."))
+		fmt.Println("\tcolumnize\t[--quiet | --verbose]\n\t\t[--header N | --skip-header]\n\t\t[--delimiter STRING]\n\t\t[--left | --right]\n\t\t[--footer N]\n\t\t[file1 [file2 ...]]\n")
+		fmt.Println("EXAMPLES:")
+		fmt.Println("\tcolumnize < sample.txt")
+		fmt.Println("\tcolumnize sample.txt")
+		fmt.Println("\tcolumnize benchmarks-a.out benchmarks-b.out")
+		fmt.Println("\tcolumnize --header 3 --footer 2 testdata/bench.out")
+		fmt.Println("\nCommand line options:")
+		golf.PrintDefaults()
+		return nil
+	}
+
 	if *optIgnoreHeader && *optHeaderLines == 0 {
 		*optHeaderLines = 1
 	}
