@@ -3,7 +3,6 @@ package golf
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"unicode/utf8"
 )
 
@@ -11,10 +10,10 @@ import (
 // argument after flags have been processed. Arg returns an empty string if the
 // requested element does not exist.
 func Arg(i int) string {
-	if i >= len(remainingArguments) {
-		return ""
+	if i < len(remainingArguments) {
+		return remainingArguments[i]
 	}
-	return remainingArguments[i]
+	return ""
 }
 
 // Args returns the non-flag command-line arguments.
@@ -61,16 +60,23 @@ func PrintDefaults() {
 			fmt.Fprintf(os.Stderr, "  --%s%s\n", long, typeName)
 		}
 
+		d := "%v"
+		switch value.(type) {
+		case string, rune:
+			d = "%q"
+		}
+
 		if description != "" {
-			fmt.Fprintf(os.Stderr, "\t%s (default: %v)\n", description, value)
+			fmt.Fprintf(os.Stderr, "\t%s (default: "+d+")\n", description, value)
 		} else {
-			fmt.Fprintf(os.Stderr, "\t(default: %v)\n", value)
+			fmt.Fprintf(os.Stderr, "\t(default: "+d+")\n", value)
 		}
 	}
 }
 
-// Usage prints command line usage to stderr.
-func Usage() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", filepath.Base(os.Args[0]))
+// Usage prints command line usage to stderr, but may be overridden by programs
+// that need to customize the usage information.
+var Usage = func() {
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
 }
