@@ -1,4 +1,4 @@
-package main
+package main // import "github.com/karrick/columnize"
 
 import (
 	"errors"
@@ -117,16 +117,16 @@ func main() {
 		// options when '--help' is given.
 		fmt.Printf(`columnize
 
-Like 'column -t', but right justifies numerical fields. Reads input from
-multiple files specified on the command line or from standard input when no
+Like  'column -t',  but  right  justifies numerical  fields.  Reads input  from
+multiple files  specified on the  command line or  from standard input  when no
 files are specified.
 
 SUMMARY:  columnize [options] [file1 [file2 ...]] [options]
 
-USAGE: Not all options may be used with all other options. See below synopsis
+USAGE: Not all options  may be used with all other  options. See below synopsis
 for reference.
 
-    columnize [--quiet | --verbose]
+    columnize [--quiet | [--force | --verbose]]
               [--header N]
               [--delimiter STRING]
               [--left | --right]
@@ -142,7 +142,7 @@ EXAMPLES:
 
 Command line options:`)
 		golf.PrintDefaults() // frustratingly, this only prints to stderr, and cannot change because it mimicks flag stdlib package
-		os.Exit(0)
+		return
 	}
 
 	if *optQuiet {
