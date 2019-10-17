@@ -34,11 +34,6 @@ Compare the output of the following two commands.
     $ columnize testdata/bench.out
     $ columnize --header 3 --footer 2 testdata/bench.out
 
-### Skip Header (deprecated: see --header flag)
-
-The `--skip-header, -s` flag behaves exactly as if the `--header 1`
-flag were provided.
-
 ### Left Justify
 
 When the `-l` command line option is provided, all columns will be

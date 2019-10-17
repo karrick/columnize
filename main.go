@@ -105,7 +105,6 @@ var (
 	optDelimiter    = golf.StringP('d', "delimiter", "  ", "output column delimiter")
 	optFooterLines  = golf.Int("footer", 0, "ignore N lines from footer when formatting columns")
 	optHeaderLines  = golf.Int("header", 0, "ignore N lines from header when formatting columns")
-	optIgnoreHeader = golf.BoolP('s', "skip-header", false, "Same as `--header 1`")
 	optLeftJustify  = golf.BoolP('l', "left", false, "left-justify all columns")
 	optRightJustify = golf.BoolP('r', "right", false, "right-justify all columns")
 )
@@ -128,7 +127,7 @@ USAGE: Not all options may be used with all other options. See below synopsis
 for reference.
 
     columnize [--quiet | --verbose]
-              [--header N | --skip-header]
+              [--header N]
               [--delimiter STRING]
               [--left | --right]
               [--footer N]
@@ -153,10 +152,6 @@ Command line options:`)
 		if *optVerbose {
 			usage(errors.New("cannot use both --quiet and --verbose"))
 		}
-	}
-
-	if *optIgnoreHeader && *optHeaderLines == 0 {
-		*optHeaderLines = 1
 	}
 
 	err := forEachFile(golf.Args(), func(r io.Reader, w io.Writer) error {
