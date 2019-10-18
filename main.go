@@ -137,7 +137,8 @@ EXAMPLES:
     columnize benchmarks-a.out benchmarks-b.out
     columnize --header 3 --footer 2 testdata/bench.out
 
-Command line options:`)
+Command line options:
+`)
 		golf.PrintDefaults() // frustratingly, this only prints to stderr, and cannot change because it mimicks flag stdlib package
 		return
 	}
