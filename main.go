@@ -1,7 +1,6 @@
 package main // import "github.com/karrick/columnize"
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,30 +11,6 @@ import (
 	"github.com/karrick/gobls"
 	"github.com/karrick/golf"
 )
-
-var (
-	ProgramName string
-
-	optForce   = golf.Bool("force", false, "Print errors to stderr, but keep working.")
-	optHelp    = golf.BoolP('h', "help", false, "Print command line help and exit.")
-	optQuiet   = golf.BoolP('q', "quiet", false, "Do not print intermediate errors to stderr.")
-	optVerbose = golf.BoolP('v', "verbose", false, "Print verbose output to stderr.")
-)
-
-func init() {
-	var err error
-	if ProgramName, err = os.Executable(); err != nil {
-		ProgramName = os.Args[0]
-	}
-	ProgramName = filepath.Base(ProgramName)
-
-	// Rather than display the entire usage information for a parsing error,
-	// merely allow golf library to display the error message, then print the
-	// command the user may use to show command line usage information.
-	golf.Usage = func() {
-		stderr("Use `%s --help` for more information.\n", ProgramName)
-	}
-}
 
 // fatal prints the error to standard error then exits the program with status
 // code 1.
@@ -79,8 +54,8 @@ func stderr(f string, args ...interface{}) {
 
 // usage prints the error to standard error, prints message how to get help,
 // then exits the program with status code 2.
-func usage(err error) {
-	stderr("%s\n", err)
+func usage(f string, args ...interface{}) {
+	stderr(f, args...)
 	golf.Usage()
 	os.Exit(2)
 }
@@ -101,7 +76,29 @@ func warning(f string, args ...interface{}) {
 	}
 }
 
+var ProgramName string
+
+func init() {
+	var err error
+	if ProgramName, err = os.Executable(); err != nil {
+		ProgramName = os.Args[0]
+	}
+	ProgramName = filepath.Base(ProgramName)
+
+	// Rather than display the entire usage information for a parsing error,
+	// merely allow golf library to display the error message, then print the
+	// command the user may use to show command line usage information.
+	golf.Usage = func() {
+		stderr("Use `%s --help` for more information.\n", ProgramName)
+	}
+}
+
 var (
+	optForce   = golf.Bool("force", false, "Print errors to stderr, but keep working.")
+	optHelp    = golf.BoolP('h', "help", false, "Print command line help and exit.")
+	optQuiet   = golf.BoolP('q', "quiet", false, "Do not print intermediate errors to stderr.")
+	optVerbose = golf.BoolP('v', "verbose", false, "Print verbose output to stderr.")
+
 	optDelimiter    = golf.StringP('d', "delimiter", "  ", "output column delimiter")
 	optFooterLines  = golf.Int("footer", 0, "ignore N lines from footer when formatting columns")
 	optHeaderLines  = golf.Int("header", 0, "ignore N lines from header when formatting columns")
@@ -147,10 +144,10 @@ Command line options:`)
 
 	if *optQuiet {
 		if *optForce {
-			usage(errors.New("cannot use both --quiet and --force"))
+			usage("cannot use both --quiet and --force")
 		}
 		if *optVerbose {
-			usage(errors.New("cannot use both --quiet and --verbose"))
+			usage("cannot use both --quiet and --verbose")
 		}
 	}
 
