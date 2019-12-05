@@ -10,100 +10,50 @@ import (
 
 	"github.com/karrick/gobls"
 	"github.com/karrick/golf"
+	"github.com/karrick/gologs"
 )
 
-// fatal prints the error to standard error then exits the program with status
-// code 1.
 func fatal(err error) {
-	stderr("%s\n", err)
+	log.Error("%s", err)
 	os.Exit(1)
 }
 
-// newline returns a string with exactly one terminating newline character.
-// More simple than strings.TrimRight.  When input string has multiple newline
-// characters, it will strip off all but first one, reusing the same underlying
-// string bytes.  When string does not end in a newline character, it returns
-// the original string with a newline character appended.
-func newline(s string) string {
-	l := len(s)
-	if l == 0 {
-		return "\n"
-	}
-
-	// While this is O(length s), it stops as soon as it finds the first non
-	// newline character in the string starting from the right hand side of the
-	// input string.  Generally this only scans one or two characters and
-	// returns.
-	for i := l - 1; i >= 0; i-- {
-		if s[i] != '\n' {
-			if i+1 < l && s[i+1] == '\n' {
-				return s[:i+2]
-			}
-			return s[:i+1] + "\n"
-		}
-	}
-
-	return s[:1] // all newline characters, so just return the first one
-}
-
-// stderr formats and prints its arguments to standard error after prefixing
-// them with the program name.
-func stderr(f string, args ...interface{}) {
-	os.Stderr.Write([]byte(ProgramName + ": " + newline(fmt.Sprintf(f, args...))))
-}
-
-// usage prints the error to standard error, prints message how to get help,
-// then exits the program with status code 2.
 func usage(f string, args ...interface{}) {
-	stderr(f, args...)
+	log.Error(f, args...)
 	golf.Usage()
 	os.Exit(2)
 }
 
-// verbose formats and prints its arguments to standard error after prefixing
-// them with the program name.  This skips printing when optVerbose is false.
-func verbose(f string, args ...interface{}) {
-	if *optVerbose {
-		stderr(f, args...)
-	}
-}
-
-// warning formats and prints its arguments to standard error after prefixing
-// them with the program name.  This skips printing when optQuiet is true.
-func warning(f string, args ...interface{}) {
-	if !*optQuiet {
-		stderr(f, args...)
-	}
-}
-
-var ProgramName string
-
 func init() {
+	// Initialize the global log variable, which will be used very much like the
+	// log standard library would be used.
 	var err error
-	if ProgramName, err = os.Executable(); err != nil {
-		ProgramName = os.Args[0]
+	log, err = gologs.New(os.Stderr, gologs.DefaultCommandFormat)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
+		os.Exit(1)
 	}
-	ProgramName = filepath.Base(ProgramName)
 
 	// Rather than display the entire usage information for a parsing error,
 	// merely allow golf library to display the error message, then print the
 	// command the user may use to show command line usage information.
-	golf.Usage = func() {
-		stderr("Use `%s --help` for more information.\n", ProgramName)
-	}
+	golf.Usage = func() { log.Error("Use '--help' for more information.") }
 }
 
 var (
-	optForce   = golf.Bool("force", false, "Print errors to stderr, but keep working.")
-	optHelp    = golf.BoolP('h', "help", false, "Print command line help and exit.")
-	optQuiet   = golf.BoolP('q', "quiet", false, "Do not print intermediate errors to stderr.")
-	optVerbose = golf.BoolP('v', "verbose", false, "Print verbose output to stderr.")
+	log *gologs.Logger
 
-	optDelimiter    = golf.StringP('d', "delimiter", "  ", "output column delimiter")
-	optFooterLines  = golf.Int("footer", 0, "ignore N lines from footer when formatting columns")
-	optHeaderLines  = golf.Int("header", 0, "ignore N lines from header when formatting columns")
-	optLeftJustify  = golf.BoolP('l', "left", false, "left-justify all columns")
-	optRightJustify = golf.BoolP('r', "right", false, "right-justify all columns")
+	optDebug   = golf.Bool("debug", false, "Print debug output to standard error.")
+	optForce   = golf.Bool("force", false, "Print non-fatal errors to standard error, but keep working.")
+	optHelp    = golf.BoolP('h', "help", false, "Print command line help and exit.")
+	optQuiet   = golf.BoolP('q', "quiet", false, "Do not print non-fatal errors.")
+	optVerbose = golf.BoolP('v', "verbose", false, "Print verbose output to standard error.")
+
+	optDelimiter    = golf.StringP('d', "delimiter", "  ", "Output column delimiter.")
+	optFooterLines  = golf.Int("footer", 0, "Ignore N lines from footer when formatting columns.")
+	optHeaderLines  = golf.Int("header", 0, "Ignore N lines from header when formatting columns.")
+	optLeftJustify  = golf.BoolP('l', "left", false, "Left-justify all columns.")
+	optRightJustify = golf.BoolP('r', "right", false, "Right-justify all columns.")
 )
 
 func main() {
@@ -114,16 +64,16 @@ func main() {
 		// options when '--help' is given.
 		fmt.Printf(`columnize
 
-Like  'column -t',  but  right  justifies numerical  fields.  Reads input  from
-multiple files  specified on the  command line or  from standard input  when no
+Like  'column -t',  but right  justifies numerical  fields.  Reads  input from
+multiple files  specified on the command  line or from standard  input when no
 files are specified.
 
 SUMMARY:  columnize [options] [file1 [file2 ...]] [options]
 
-USAGE: Not all options  may be used with all other  options. See below synopsis
+USAGE: Not all options may be used with all other options.  See below synopsis
 for reference.
 
-    columnize [--quiet | [--force | --verbose]]
+    columnize [--quiet | [--debug | --force | --verbose]]
               [--header N]
               [--delimiter STRING]
               [--left | --right]
@@ -132,24 +82,38 @@ for reference.
 
 EXAMPLES:
 
-    columnize < sample.txt
-    columnize sample.txt
+    columnize < testdata/bare
+    columnize testdata/bare
     columnize benchmarks-a.out benchmarks-b.out
-    columnize --header 3 --footer 2 testdata/bench.out
+    columnize --header 3 --footer 2 testdata/ignore-headers-footers
 
 Command line options:
 `)
-		golf.PrintDefaults() // frustratingly, this only prints to stderr, and cannot change because it mimicks flag stdlib package
+		golf.PrintDefaultsTo(os.Stdout)
 		return
 	}
 
 	if *optQuiet {
+		if *optDebug {
+			usage("cannot use both --quiet and --debug")
+		}
 		if *optForce {
 			usage("cannot use both --quiet and --force")
 		}
 		if *optVerbose {
 			usage("cannot use both --quiet and --verbose")
 		}
+	}
+
+	// Configure log level according to command line flags.
+	if *optDebug {
+		log.SetDebug()
+	} else if *optVerbose {
+		log.SetVerbose()
+	} else if *optQuiet {
+		log.SetError()
+	} else {
+		log.SetInfo()
 	}
 
 	err := forEachFile(golf.Args(), func(r io.Reader, w io.Writer) error {
@@ -172,11 +136,10 @@ func forEachFile(files []string, callback func(io.Reader, io.Writer) error) erro
 			return callback(f, os.Stdout)
 		})
 		if err != nil {
-			err = fmt.Errorf("cannot read %q: %s", file, err)
 			if !*optForce {
 				return err
 			}
-			warning("%s\n", err)
+			log.Warning("cannot read %q: %s", file, err)
 		}
 	}
 
@@ -233,7 +196,7 @@ func process(ior io.Reader, iow io.Writer) error {
 			continue
 		}
 
-		fields := strings.Fields(strings.TrimSpace(line.(string)))
+		fields := strings.Fields(line.(string))
 		for i, field := range fields {
 			if width := len(field); width > widths[i] { // if width wider than previous width
 				widths[i] = width // save this width as new widest width for this column
