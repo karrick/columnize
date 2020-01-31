@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/karrick/gobls"
-	"github.com/karrick/golf"
 	"github.com/karrick/gologs"
 )
 
@@ -18,13 +17,15 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-func usage(f string, args ...interface{}) {
-	log.Error(f, args...)
-	golf.Usage()
-	os.Exit(2)
-}
+var log *gologs.Logger
+var optArgs []string
+var optDelimiter string
+var optFooterLines, optHeaderLines uint64
+var optForce, optLeftJustify, optRightJustify bool
 
 func init() {
+	var optDebug, optHelp, optQuiet, optVerbose bool
+
 	// Initialize the global log variable, which will be used very much like the
 	// log standard library would be used.
 	var err error
@@ -34,32 +35,119 @@ func init() {
 		os.Exit(1)
 	}
 
-	// Rather than display the entire usage information for a parsing error,
-	// merely allow golf library to display the error message, then print the
-	// command the user may use to show command line usage information.
-	golf.Usage = func() { log.Error("Use '--help' for more information.") }
-}
+	var errs []error
 
-var (
-	log *gologs.Logger
+getNextArgument:
+	for ai, am := 1, len(os.Args)-1; ai <= am; ai++ {
+		if os.Args[ai][0] != '-' {
+			optArgs = append(optArgs, os.Args[ai]) // this argument is not an option
+			continue
+		}
 
-	optDebug   = golf.Bool("debug", false, "Print debug output to standard error.")
-	optForce   = golf.Bool("force", false, "Print non-fatal errors to standard error, but keep working.")
-	optHelp    = golf.BoolP('h', "help", false, "Print command line help and exit.")
-	optQuiet   = golf.BoolP('q', "quiet", false, "Do not print non-fatal errors.")
-	optVerbose = golf.BoolP('v', "verbose", false, "Print verbose output to standard error.")
+		ail := len(os.Args[ai])
 
-	optDelimiter    = golf.StringP('d', "delimiter", "  ", "Output column delimiter.")
-	optFooterLines  = golf.Int("footer", 0, "Ignore N lines from footer when formatting columns.")
-	optHeaderLines  = golf.Int("header", 0, "Ignore N lines from header when formatting columns.")
-	optLeftJustify  = golf.BoolP('l', "left", false, "Left-justify all columns.")
-	optRightJustify = golf.BoolP('r', "right", false, "Right-justify all columns.")
-)
+		if ail == 1 {
+			optArgs = append(optArgs, os.Args[ai]) // solitary hyphen: implies standard input
+			continue
+		}
 
-func main() {
-	golf.Parse()
+		if os.Args[ai][1] == '-' {
+			switch os.Args[ai] {
+			case "--":
+				return // double hyphen: stop processing command line arguments
+			case "--debug":
+				optDebug = true
+			case "--delimiter":
+				if ai == am {
+					errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
+					continue
+				}
+				ai++
+				optDelimiter = os.Args[ai]
+			case "--footer":
+				if ai == am {
+					errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
+					continue
+				}
+				optFooterLines, err = strconv.ParseUint(os.Args[ai+1], 10, 64)
+				if err != nil {
+					errs = append(errs, fmt.Errorf("footer option: %s", err))
+					continue
+				}
+				ai++
+			case "--force":
+				optForce = true
+			case "--header":
+				if ai == am {
+					errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
+					continue
+				}
+				optHeaderLines, err = strconv.ParseUint(os.Args[ai+1], 10, 64)
+				if err != nil {
+					errs = append(errs, fmt.Errorf("header option: %s", err))
+					continue
+				}
+				ai++
+			case "--help":
+				optHelp = true
+			case "--left":
+				optLeftJustify = true
+			case "--quiet":
+				optQuiet = true
+			case "--right":
+				optRightJustify = true
+			case "--verbose":
+				optVerbose = true
+			default:
+				errs = append(errs, fmt.Errorf("unknown option: %q", os.Args[ai]))
+			}
+			continue
+		}
 
-	if *optHelp {
+		for aii := 1; aii < ail; aii++ {
+			switch os.Args[ai][aii] {
+			case 'd':
+				switch {
+				case ail-aii > 1:
+					optDelimiter = os.Args[ai][aii+1:] // option argument is rest of this argument
+				case ai < am:
+					ai++
+					optDelimiter = os.Args[ai] // option argument is next argument
+				default:
+					errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
+				}
+				continue getNextArgument
+			case 'f':
+				optForce = true
+			case 'h':
+				optHelp = true
+			case 'l':
+				optLeftJustify = true
+			case 'q':
+				optQuiet = true
+			case 'r':
+				optRightJustify = true
+			case 'v':
+				optVerbose = true
+			default:
+				errs = append(errs, fmt.Errorf("unknown option prefix: %q", os.Args[ai][aii]))
+			}
+		}
+	}
+
+	if optQuiet {
+		if optDebug {
+			errs = append(errs, fmt.Errorf("cannot use both --quiet and --debug"))
+		}
+		if optForce {
+			errs = append(errs, fmt.Errorf("cannot use both --quiet and --force"))
+		}
+		if optVerbose {
+			errs = append(errs, fmt.Errorf("cannot use both --quiet and --verbose"))
+		}
+	}
+
+	if optHelp {
 		// Show detailed help then exit, ignoring other possibly conflicting
 		// options when '--help' is given.
 		fmt.Printf(`columnize
@@ -88,35 +176,53 @@ EXAMPLES:
     columnize --header 3 --footer 2 testdata/ignore-headers-footers
 
 Command line options:
+  --force
+    Print errors to stderr, but keep working.
+  -h, --help
+    Print command line help and exit.
+  -q, --quiet
+    Do not print intermediate errors to stderr.
+  -v, --verbose
+    Print verbose output to stderr.
+  -d, --delimiter string (default: "  ")
+    output column delimiter
+  --footer int (default: 0)
+    ignore N lines from footer when formatting columns
+  --header int (default: 0)
+    ignore N lines from header when formatting columns
+  -l, --left
+    left-justify all columns
+  -r, --right
+    right-justify all columns
 `)
-		golf.PrintDefaultsTo(os.Stdout)
-		return
+		os.Exit(0)
 	}
 
-	if *optQuiet {
-		if *optDebug {
-			usage("cannot use both --quiet and --debug")
+	if len(errs) > 0 {
+		// Rather than display the entire usage information for a parsing error,
+		// merely allow golf library to display the error message, then print
+		// the command the user may use to show command line usage information.
+		for _, err := range errs {
+			log.Error("%s", err)
 		}
-		if *optForce {
-			usage("cannot use both --quiet and --force")
-		}
-		if *optVerbose {
-			usage("cannot use both --quiet and --verbose")
-		}
+		log.Error("Use '--help' for more information.")
+		os.Exit(2)
 	}
 
 	// Configure log level according to command line flags.
-	if *optDebug {
+	if optDebug {
 		log.SetDebug()
-	} else if *optVerbose {
+	} else if optVerbose {
 		log.SetVerbose()
-	} else if *optQuiet {
+	} else if optQuiet {
 		log.SetError()
 	} else {
 		log.SetInfo()
 	}
+}
 
-	err := forEachFile(golf.Args(), func(r io.Reader, w io.Writer) error {
+func main() {
+	err := forEachFile(optArgs, func(r io.Reader, w io.Writer) error {
 		return process(r, os.Stdout)
 	})
 	if err != nil {
@@ -132,11 +238,11 @@ func forEachFile(files []string, callback func(io.Reader, io.Writer) error) erro
 	}
 
 	for _, file := range files {
-		err := withOpenFile(file, func(f *os.File) error {
+		err := withOpenFile(file, func(f io.Reader) error {
 			return callback(f, os.Stdout)
 		})
 		if err != nil {
-			if !*optForce {
+			if !optForce {
 				return err
 			}
 			log.Warning("cannot read %q: %s", file, err)
@@ -146,7 +252,11 @@ func forEachFile(files []string, callback func(io.Reader, io.Writer) error) erro
 	return nil
 }
 
-func withOpenFile(path string, callback func(*os.File) error) (err error) {
+func withOpenFile(path string, callback func(io.Reader) error) (err error) {
+	if path == "-" {
+		return callback(os.Stdin)
+	}
+
 	var fh *os.File
 
 	fh, err = os.Open(path)
@@ -167,7 +277,7 @@ func withOpenFile(path string, callback func(*os.File) error) (err error) {
 
 func process(ior io.Reader, iow io.Writer) error {
 	// Use a cirular buffer, so we are processing the Nth previous line.
-	cb, err := newTailBuffer(*optFooterLines)
+	cb, err := newTailBuffer(optFooterLines)
 	if err != nil {
 		return err
 	}
@@ -177,17 +287,17 @@ func process(ior io.Reader, iow io.Writer) error {
 
 	br := gobls.NewScanner(ior)
 
-	var lineNumber int
+	var lineNumber uint64
 
 	for br.Scan() {
-		if *optHeaderLines > 0 {
+		if optHeaderLines > 0 {
 			// Only need to count lines while ignoring headers.
-			if lineNumber++; lineNumber <= *optHeaderLines {
+			if lineNumber++; lineNumber <= optHeaderLines {
 				fmt.Fprintf(iow, "%s\n", br.Text())
 				continue
 			}
 			// No reason to count lines any longer.
-			*optHeaderLines = 0
+			optHeaderLines = 0
 		}
 
 		// Recall circular buffer always gives us Nth previous line.
@@ -212,7 +322,7 @@ func process(ior io.Reader, iow io.Writer) error {
 	// all lines collected thus far, remembering that there may be N lines left
 	// in the circular buffer remaining to be processed.
 	for _, line := range lines {
-		d := *optDelimiter
+		d := optDelimiter
 		for i := 0; i < len(line); i++ {
 			// Print newline instead of delimiter for
 			// final column.
@@ -223,9 +333,9 @@ func process(ior io.Reader, iow io.Writer) error {
 			field := line[i]
 			width := widths[i]
 
-			if *optLeftJustify {
+			if optLeftJustify {
 				left(iow, width, field, d)
-			} else if *optRightJustify {
+			} else if optRightJustify {
 				right(iow, width, field, d)
 			} else {
 				// Right justify if number; otherwise

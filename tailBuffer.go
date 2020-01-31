@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 // tailBuffer is a non-concurrency safe data structure for storing the N
 // previous items, where 0 <= N <= limit.
 type tailBuffer struct {
@@ -11,10 +9,8 @@ type tailBuffer struct {
 }
 
 // newTailBuffer returns a newly initialized tailBuffer..
-func newTailBuffer(n int) (*tailBuffer, error) {
+func newTailBuffer(n uint64) (*tailBuffer, error) {
 	switch {
-	case n < 0:
-		return nil, fmt.Errorf("cannot create round buffer with negative item count: %d", n)
 	case n == 0:
 		return new(tailBuffer), nil
 	default:
