@@ -19,18 +19,10 @@ var optFooterLines, optHeaderLines uint64
 var optForce, optLeftJustify, optRightJustify bool
 
 func init() {
+	// Process command line arguments and configure logging.
 	var optDebug, optHelp, optQuiet, optVerbose bool
-
-	// Initialize the global log variable, which will be used very much like the
-	// log standard library would be used.
-	var err error
-	log, err = gologs.New(os.Stderr, gologs.DefaultCommandFormat)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
-		os.Exit(1)
-	}
-
 	var errs []error
+	var err error
 
 nextArg:
 	for ai, am := 1, len(os.Args)-1; ai <= am; ai++ {
@@ -191,10 +183,18 @@ Command line options:
 		os.Exit(0)
 	}
 
+	// Initialize the global log variable, which will be used very much like the
+	// log standard library would be used.
+	log, err = gologs.New(os.Stderr, gologs.DefaultCommandFormat)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
+		os.Exit(1)
+	}
+
 	if len(errs) > 0 {
 		// Rather than display the entire usage information for a parsing error,
-		// merely allow golf library to display the error message, then print
-		// the command the user may use to show command line usage information.
+		// display all error messages then show how to display command line
+		// help.
 		for _, err := range errs {
 			log.Error("%s", err)
 		}
