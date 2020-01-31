@@ -12,14 +12,9 @@ import (
 	"github.com/karrick/gologs"
 )
 
-func fatal(err error) {
-	log.Error("%s", err)
-	os.Exit(1)
-}
-
 var log *gologs.Logger
 var optArgs []string
-var optDelimiter string
+var optDelimiter = " "
 var optFooterLines, optHeaderLines uint64
 var optForce, optLeftJustify, optRightJustify bool
 
@@ -37,7 +32,7 @@ func init() {
 
 	var errs []error
 
-getNextArgument:
+nextArg:
 	for ai, am := 1, len(os.Args)-1; ai <= am; ai++ {
 		if os.Args[ai][0] != '-' {
 			optArgs = append(optArgs, os.Args[ai]) // this argument is not an option
@@ -110,15 +105,13 @@ getNextArgument:
 				switch {
 				case ail-aii > 1:
 					optDelimiter = os.Args[ai][aii+1:] // option argument is rest of this argument
+					continue nextArg                   // already sucked up the rest of this argument
 				case ai < am:
 					ai++
 					optDelimiter = os.Args[ai] // option argument is next argument
 				default:
 					errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
 				}
-				continue getNextArgument
-			case 'f':
-				optForce = true
 			case 'h':
 				optHelp = true
 			case 'l':
@@ -226,7 +219,8 @@ func main() {
 		return process(r, os.Stdout)
 	})
 	if err != nil {
-		fatal(err)
+		log.Error("%s", err)
+		os.Exit(1)
 	}
 }
 
@@ -287,22 +281,19 @@ func process(ior io.Reader, iow io.Writer) error {
 
 	br := gobls.NewScanner(ior)
 
-	var lineNumber uint64
-
 	for br.Scan() {
 		if optHeaderLines > 0 {
 			// Only need to count lines while ignoring headers.
-			if lineNumber++; lineNumber <= optHeaderLines {
-				fmt.Fprintf(iow, "%s\n", br.Text())
-				continue
-			}
-			// No reason to count lines any longer.
-			optHeaderLines = 0
+			fmt.Fprintf(iow, "%s\n", br.Text())
+			optHeaderLines--
+			continue
 		}
 
-		// Recall circular buffer always gives us Nth previous line.
 		line := cb.QueueDequeue(br.Text())
 		if line == nil {
+			// NOTE: A circular buffer always gives us Nth previous line. So
+			// this fills up the circular queue with N items, which we will
+			// process after the queue fills.
 			continue
 		}
 
@@ -324,8 +315,7 @@ func process(ior io.Reader, iow io.Writer) error {
 	for _, line := range lines {
 		d := optDelimiter
 		for i := 0; i < len(line); i++ {
-			// Print newline instead of delimiter for
-			// final column.
+			// Print newline instead of delimiter for final column.
 			if i == len(line)-1 {
 				d = "\n"
 			}
@@ -338,8 +328,7 @@ func process(ior io.Reader, iow io.Writer) error {
 			} else if optRightJustify {
 				right(iow, width, field, d)
 			} else {
-				// Right justify if number; otherwise
-				// left justify
+				// Right justify if column is a number; otherwise left justify.
 				if _, err := strconv.ParseFloat(field, 64); err == nil {
 					right(iow, width, field, d)
 				} else {
@@ -348,10 +337,12 @@ func process(ior io.Reader, iow io.Writer) error {
 			}
 		}
 	}
+
 	// Dump remaining contents of circular buffer.
 	for _, line := range cb.Drain() {
 		fmt.Fprintf(iow, "%s\n", line.(string))
 	}
+
 	return nil
 }
 
