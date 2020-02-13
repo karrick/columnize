@@ -18,132 +18,18 @@ var optDelimiter = " "
 var optFooterLines, optHeaderLines uint64
 var optForce, optLeftJustify, optRightJustify bool
 
-func init() {
-	// Process command line arguments and configure logging.
-	var optDebug, optHelp, optQuiet, optVerbose bool
-	var errs []error
-	var err error
+func help() {
+	// Show detailed help then exit, ignoring other possibly conflicting
+	// options when '--help' is given.
+	fmt.Printf(`columnize
 
-nextArg:
-	for ai, am := 1, len(os.Args)-1; ai <= am; ai++ {
-		if os.Args[ai][0] != '-' {
-			optArgs = append(optArgs, os.Args[ai]) // this argument is not an option
-			continue
-		}
-
-		ail := len(os.Args[ai])
-
-		if ail == 1 {
-			optArgs = append(optArgs, os.Args[ai]) // solitary hyphen: implies standard input
-			continue
-		}
-
-		if os.Args[ai][1] == '-' {
-			switch os.Args[ai] {
-			case "--":
-				return // double hyphen: stop processing command line arguments
-			case "--debug":
-				optDebug = true
-			case "--delimiter":
-				if ai == am {
-					errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
-					continue
-				}
-				ai++
-				optDelimiter = os.Args[ai]
-			case "--footer":
-				if ai == am {
-					errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
-					continue
-				}
-				optFooterLines, err = strconv.ParseUint(os.Args[ai+1], 10, 64)
-				if err != nil {
-					errs = append(errs, fmt.Errorf("footer option: %s", err))
-					continue
-				}
-				ai++
-			case "--force":
-				optForce = true
-			case "--header":
-				if ai == am {
-					errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
-					continue
-				}
-				optHeaderLines, err = strconv.ParseUint(os.Args[ai+1], 10, 64)
-				if err != nil {
-					errs = append(errs, fmt.Errorf("header option: %s", err))
-					continue
-				}
-				ai++
-			case "--help":
-				optHelp = true
-			case "--left":
-				optLeftJustify = true
-			case "--quiet":
-				optQuiet = true
-			case "--right":
-				optRightJustify = true
-			case "--verbose":
-				optVerbose = true
-			default:
-				errs = append(errs, fmt.Errorf("unknown option: %q", os.Args[ai]))
-			}
-			continue
-		}
-
-		for aii := 1; aii < ail; aii++ {
-			switch os.Args[ai][aii] {
-			case 'd':
-				switch {
-				case ail-aii > 1:
-					optDelimiter = os.Args[ai][aii+1:] // option argument is rest of this argument
-					continue nextArg                   // already sucked up the rest of this argument
-				case ai < am:
-					ai++
-					optDelimiter = os.Args[ai] // option argument is next argument
-				default:
-					errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
-				}
-			case 'h':
-				optHelp = true
-			case 'l':
-				optLeftJustify = true
-			case 'q':
-				optQuiet = true
-			case 'r':
-				optRightJustify = true
-			case 'v':
-				optVerbose = true
-			default:
-				errs = append(errs, fmt.Errorf("unknown option prefix: %q", os.Args[ai][aii]))
-			}
-		}
-	}
-
-	if optQuiet {
-		if optDebug {
-			errs = append(errs, fmt.Errorf("cannot use both --quiet and --debug"))
-		}
-		if optForce {
-			errs = append(errs, fmt.Errorf("cannot use both --quiet and --force"))
-		}
-		if optVerbose {
-			errs = append(errs, fmt.Errorf("cannot use both --quiet and --verbose"))
-		}
-	}
-
-	if optHelp {
-		// Show detailed help then exit, ignoring other possibly conflicting
-		// options when '--help' is given.
-		fmt.Printf(`columnize
-
-Like  'column -t',  but right  justifies numerical  fields.  Reads  input from
-multiple files  specified on the command  line or from standard  input when no
+Like  'column -t',  but  right  justifies numerical  fields.   Reads input  from
+multiple files  specified on  the command  line or from  standard input  when no
 files are specified.
 
 SUMMARY:  columnize [options] [file1 [file2 ...]] [options]
 
-USAGE: Not all options may be used with all other options.  See below synopsis
+USAGE: Not all options  may be used with all other  options.  See below synopsis
 for reference.
 
     columnize [--quiet | [--debug | --force | --verbose]]
@@ -180,23 +66,127 @@ Command line options:
   -r, --right
     right-justify all columns
 `)
-		os.Exit(0)
+	os.Exit(0)
+}
+
+func init() {
+	// Process command line arguments and configure logging.
+	var optDebug, optQuiet, optVerbose bool
+	var errs []error
+	var err error
+
+argLoop:
+	for ai, am := 1, len(os.Args)-1; ai <= am; ai++ {
+		switch os.Args[ai] {
+		case "-":
+			optArgs = append(optArgs, os.Args[ai]) // solitary hyphen: implies standard input
+		case "--":
+			// double hyphen: append remaining arguments to optArgs
+			optArgs = append(optArgs, os.Args[ai+1:]...)
+			break argLoop
+		case "--debug":
+			optDebug = true
+		case "--delimiter":
+			if ai == am {
+				errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
+				continue
+			}
+			ai++
+			optDelimiter = os.Args[ai]
+		case "--footer":
+			if ai == am {
+				errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
+				continue
+			}
+			optFooterLines, err = strconv.ParseUint(os.Args[ai+1], 10, 64)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("cannot parse option argument for %q as unsigned integer: %q", os.Args[ai], os.Args[ai+1]))
+				continue
+			}
+			ai++
+		case "--force":
+			optForce = true
+		case "--header":
+			if ai == am {
+				errs = append(errs, fmt.Errorf("option missing required argument: %q", os.Args[ai]))
+				continue
+			}
+			optHeaderLines, err = strconv.ParseUint(os.Args[ai+1], 10, 64)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("cannot parse option argument for %q as unsigned integer: %q", os.Args[ai], os.Args[ai+1]))
+				continue
+			}
+			ai++
+		case "--help":
+			help()
+		case "--left":
+			optLeftJustify = true
+		case "--quiet":
+			optQuiet = true
+		case "--right":
+			optRightJustify = true
+		case "--verbose":
+			optVerbose = true
+		default:
+			if os.Args[ai][0] != '-' {
+				optArgs = append(optArgs, os.Args[ai]) // this argument is not an option
+				continue
+			}
+			for aii, ail := 1, len(os.Args[ai]); aii < ail; aii++ {
+				switch os.Args[ai][aii] {
+				case 'd': // delimiter
+					switch {
+					case ail-aii > 1:
+						optDelimiter = os.Args[ai][aii+1:] // use rest of this argument as value
+					case ai < am:
+						ai++
+						optDelimiter = os.Args[ai] // use next argument as value
+					default:
+						errs = append(errs, fmt.Errorf("option missing required argument: \"-%c\"", os.Args[ai][aii]))
+					}
+					continue argLoop // already sucked up the rest of this argument
+				case 'h':
+					help()
+				case 'l':
+					optLeftJustify = true
+				case 'q':
+					optQuiet = true
+				case 'r':
+					optRightJustify = true
+				case 'v':
+					optVerbose = true
+				default:
+					errs = append(errs, fmt.Errorf("unknown option prefix: %q", os.Args[ai][aii]))
+				}
+			}
+		}
 	}
 
-	// Initialize the global log variable, which will be used very much like the
-	// log standard library would be used.
+	// Initialize the global log variable.
 	log, err = gologs.New(os.Stderr, gologs.DefaultCommandFormat)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
 		os.Exit(1)
 	}
 
+	if optQuiet {
+		if optDebug {
+			errs = append(errs, fmt.Errorf("cannot use both --quiet and --debug"))
+		}
+		if optForce {
+			errs = append(errs, fmt.Errorf("cannot use both --quiet and --force"))
+		}
+		if optVerbose {
+			errs = append(errs, fmt.Errorf("cannot use both --quiet and --verbose"))
+		}
+	}
+
 	if len(errs) > 0 {
-		// Rather than display the entire usage information for a parsing error,
-		// display all error messages then show how to display command line
-		// help.
+		// Rather than display the entire usage information for a command line
+		// argument parsing error, display all error messages then show how to
+		// display command line help.
 		for _, err := range errs {
-			log.Error("%s", err)
+			log.Error("%s\n", err)
 		}
 		log.Error("Use '--help' for more information.")
 		os.Exit(2)
