@@ -69,7 +69,7 @@ Command line options:
 	os.Exit(0)
 }
 
-func init() {
+func main() {
 	// Process command line arguments and configure logging.
 	var optDebug, optQuiet, optVerbose bool
 	var errs []error
@@ -202,10 +202,8 @@ argLoop:
 	} else {
 		log.SetInfo()
 	}
-}
 
-func main() {
-	err := forEachFile(optArgs, func(r io.Reader, w io.Writer) error {
+	err = forEachFile(optArgs, func(r io.Reader, w io.Writer) error {
 		return process(r, os.Stdout)
 	})
 	if err != nil {
